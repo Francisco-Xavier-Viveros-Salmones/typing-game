@@ -49,6 +49,19 @@ class NetworkManager {
         // onRoomCreated, onJoinedRoom, onPlayersUpdated, onError, onRoomClosed
         // + Nuevos callbacks de carrera: onRaceStart, onRaceUpdate, onGameOver
         this.ui = uiCallbacks; 
+
+        // Configuración de ICE Servers para mejorar la conexión P2P (Especialmente en NATs restrictivos)
+        this.peerOptions = {
+            config: {
+                'iceServers': [
+                    { urls: 'stun:stun.l.google.com:19302' },
+                    { urls: 'stun:stun1.l.google.com:19302' },
+                    { urls: 'stun:stun2.l.google.com:19302' },
+                    { urls: 'stun:stun.stunprotocol.org:3478' },
+                    { urls: 'stun:stun.cloudflare.com:3478' }
+                ]
+            }
+        };
     }
 
     // --- FUNCIONES COMUNES ---
@@ -73,7 +86,7 @@ class NetworkManager {
         // Para evitar colisiones globales, le agregamos un prefijo fijo
         const peerId = `caballos-p2p-${this.roomCode}`;
         
-        this.peer = new Peer(peerId);
+        this.peer = new Peer(peerId, this.peerOptions);
 
         this.peer.on('open', (id) => {
             console.log('Sala creada con ID:', id);
@@ -369,7 +382,7 @@ class NetworkManager {
         const hostPeerId = `caballos-p2p-${this.roomCode}`;
         
         // El cliente no necesita un ID específico, PeerJS le asignará uno aleatorio
-        this.peer = new Peer();
+        this.peer = new Peer(undefined, this.peerOptions);
 
         this.peer.on('open', (id) => {
             console.log('Conectado al servidor de señalización con ID:', id);
