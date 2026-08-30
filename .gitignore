@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.wrangler/
+.dev.vars
+*.log
+public/js/shared.js
+
+# Salida de `bun run build:client`. `bun run deploy` la regenera, así que no
+# tiene sentido versionar un bundle minificado de 300 KB en cada cambio.
+public/app.js
+public/app.css

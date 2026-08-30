@@ -1,0 +1,7 @@
+# Copia a .dev.vars (ignorado por git) y rellena.
+
+# Solo hace falta para el cron de generación de frases (fase 8).
+GEMINI_API_KEY=
+
+# No hace falta ningún secreto de sesión: las sesiones son tokens opacos
+# aleatorios guardados en D1, no cookies firmadas.

@@ -1,0 +1,31 @@
+{
+  "name": "caballos",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun run build:client && wrangler dev",
+    "build": "bun run build:client",
+    "test": "bun test",
+    "test:workers": "node ./node_modules/vitest/vitest.mjs run",
+    "typecheck": "tsc --noEmit",
+    "deploy": "bun run build && wrangler deploy",
+    "migrate:local": "wrangler d1 migrations apply caballos --local",
+    "migrate:remote": "wrangler d1 migrations apply caballos --remote",
+    "seed:generate": "bun run scripts/generate-seed.ts",
+    "build:client": "bun build src/client/main.tsx --outfile public/app.js --format esm --target browser --production && cp src/client/styles.css public/app.css"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260830.1",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.5",
+    "bun-types": "^1.4.0",
+    "typescript": "^7.0.2",
+    "wrangler": "^4.127.1"
+  },
+  "dependencies": {
+    "@phosphor-icons/react": "^2.1.10",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "swr": "^2.5.1"
+  }
+}

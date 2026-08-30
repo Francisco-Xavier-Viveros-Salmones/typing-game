@@ -1,0 +1,39 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "caballos",
+  "main": "src/worker/index.ts",
+  "compatibility_date": "2025-08-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+  },
+  // Cada 5 minutos: cierre de temporada por tandas y limpieza.
+  // El cron diario de Gemini llega en la fase 8.
+  "triggers": { "crons": ["*/5 * * * *"] },
+  // Métricas desactivadas: Analytics Engine puede pedir plan de pago. El
+  // código ya trata el binding como opcional, así que basta con descomentar
+  // esta línea para encenderlas — track() no hace nada mientras no exista.
+  // "analytics_engine_datasets": [{ "binding": "METRICS", "dataset": "caballos_events" }],
+  "observability": { "enabled": true },
+  "durable_objects": {
+    "bindings": [
+      { "name": "RACE_ROOM", "class_name": "RaceRoom" },
+      { "name": "MATCHMAKER", "class_name": "Matchmaker" },
+    ],
+  },
+  // new_sqlite_classes, no new_classes: da storage KV+SQL sincrono en el DO.
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["RaceRoom"] },
+    { "tag": "v2", "new_sqlite_classes": ["Matchmaker"] },
+  ],
+  "d1_databases": [
+    {
+      "database_name": "paco_fx_typing",
+      "database_id": "432655cd-e22a-4a39-a640-156d175007dc",
+      "binding": "DB",
+      "migrations_dir": "db/migrations",
+    },
+  ],
+}
