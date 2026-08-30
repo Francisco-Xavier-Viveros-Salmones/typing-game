@@ -121,11 +121,65 @@ const AudioEngine = (() => {
                 step++;
             }, 200);
         },
+        playLobbyMusic: () => {
+            if (!audioCtx) return;
+            if (musicPlaying) return;
+            musicPlaying = true;
+            
+            const melody = [220.00, 277.18, 329.63, 277.18]; // A major relaxed
+            let step = 0;
+            musicInterval = setInterval(() => {
+                if (!musicPlaying) {
+                    clearInterval(musicInterval);
+                    return;
+                }
+                if (masterVolume > 0) {
+                    playTone(melody[step % melody.length], 'sine', 0.3, 0.015);
+                }
+                step++;
+            }, 400);
+        },
+        playResultsMusic: () => {
+            if (!audioCtx) return;
+            if (musicPlaying) return;
+            musicPlaying = true;
+            
+            const melody = [523.25, 659.25, 783.99, 1046.50]; // C major fanfare
+            let step = 0;
+            musicInterval = setInterval(() => {
+                if (!musicPlaying) {
+                    clearInterval(musicInterval);
+                    return;
+                }
+                if (masterVolume > 0) {
+                    // pattern: 1 2 3 4 4 4
+                    let idx = step % 6;
+                    if (idx > 3) idx = 3;
+                    playTone(melody[idx], 'triangle', 0.15, 0.025);
+                }
+                step++;
+            }, 150);
+        },
         stopMusic: () => {
             musicPlaying = false;
             if (musicInterval) clearInterval(musicInterval);
+        },
+        playCountdownTick: () => {
+            playTone(440, 'square', 0.1, 0.05);
+        },
+        playCountdownGo: () => {
+            playTone(880, 'square', 0.4, 0.05);
+        },
+        playTypeSound: () => {
+            playTone(600, 'sine', 0.02, 0.01);
+        },
+        playFinishSound: () => {
+            playTone(523.25, 'square', 0.1, 0.05);
+            setTimeout(() => playTone(659.25, 'square', 0.1, 0.05), 100);
+            setTimeout(() => playTone(783.99, 'square', 0.1, 0.05), 200);
+            setTimeout(() => playTone(1046.50, 'square', 0.4, 0.05), 300);
         }
     };
 })();
 
-window.AudioEngine = AudioEngine;
+export default AudioEngine;

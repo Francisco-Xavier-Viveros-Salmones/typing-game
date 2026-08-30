@@ -1,5 +1,30 @@
+import { textDatabase } from './texts.js';
+import AudioEngine from './audio.js';
+import TypingGame from './game.js';
+import NetworkManager from './network.js';
+
 // app.js
 // Maneja la UI y conecta con la red
+
+console.log(`
+  _____       _             _______   __ 
+ |  __ \\     | |           |  ___\\ \\ / / 
+ | |__) |__ _| | _____     | |_   \\ V /  
+ |  ___/ _ \\ | |/ / _ \\    |  _|   > <   
+ | |  | (_|  |   < (_) |   | |    / . \\  
+ |_|   \\__,_|_|\\_\\___/     |_|   /_/ \\_\\ 
+                                         
+ ¡Hey! Estás revisando el código de Carrera de Caballos.
+ 🐴 Desarrollado por @Pako_FX 🐴
+`);
+
+window.onerror = function(msg, url, lineNo, columnNo, error) {
+    alert('Error: ' + msg + '\nLínea: ' + lineNo + '\nColumna: ' + columnNo + '\nArchivo: ' + url);
+    return false;
+};
+window.onunhandledrejection = function(event) {
+    alert('Unhandled Promise Rejection: ' + event.reason);
+};
 
 document.addEventListener('DOMContentLoaded', () => {
     
@@ -41,7 +66,9 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // UI Settings
     const settingRounds = document.getElementById('setting-rounds');
-    const settingTime = document.getElementById('setting-time');
+    const settingTimeEasy = document.getElementById('setting-time-easy');
+    const settingTimeMode = document.getElementById('setting-time-mode');
+    const settingTimeCustom = document.getElementById('setting-time-custom');
     const settingCategory = document.getElementById('setting-category');
     const settingDifficulty = document.getElementById('setting-difficulty');
     const settingLanguage = document.getElementById('setting-language');
@@ -85,12 +112,10 @@ document.addEventListener('DOMContentLoaded', () => {
             settingLanguage.disabled = false;
             settingDifficulty.disabled = false;
             
-            if (settingDifficulty.value === 'normal' || settingDifficulty.value === 'dificil') {
-                settingTime.value = '0';
-                settingTime.disabled = true;
-            } else {
-                settingTime.disabled = false;
-            }
+            settingTimeEasy.disabled = false;
+            settingTimeMode.disabled = false;
+            settingTimeCustom.disabled = false;
+            updateTimeUI();
         },
         onJoinedRoom: (code) => {
             chatMessages.innerHTML = ''; // Limpiar chat anterior
@@ -106,7 +131,9 @@ document.addEventListener('DOMContentLoaded', () => {
             
             gameSettingsPanel.style.display = 'block';
             settingRounds.disabled = true;
-            settingTime.disabled = true;
+            settingTimeEasy.disabled = true;
+            settingTimeMode.disabled = true;
+            settingTimeCustom.disabled = true;
             settingCategory.disabled = true;
             settingMode.disabled = true;
             settingLanguage.disabled = true;
@@ -143,11 +170,23 @@ document.addEventListener('DOMContentLoaded', () => {
         },
         onSettingsUpdate: (settings) => {
             settingRounds.value = settings.totalRounds;
-            settingTime.value = settings.timeLimit;
             settingCategory.value = settings.category || 'quotes';
             settingMode.value = settings.mode || 'normal';
             settingLanguage.value = settings.language || 'es';
             settingDifficulty.value = settings.difficulty || 'normal';
+            
+            updateTimeUI();
+            if (settings.difficulty === 'facil') {
+                settingTimeEasy.value = settings.timeLimit;
+            } else {
+                if (settings.timeLimit === 0) {
+                    settingTimeMode.value = '0';
+                } else {
+                    settingTimeMode.value = 'custom';
+                    settingTimeCustom.value = settings.timeLimit;
+                }
+                updateTimeUI();
+            }
         },
         onRaceStart: (texto, currentRound, settings) => {
             prepararCarrera(texto, currentRound, settings);
@@ -274,7 +313,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     volSlider.addEventListener('input', (e) => {
-        if (window.AudioEngine) {
+        if (AudioEngine) {
             AudioEngine.setVolume(parseFloat(e.target.value));
         }
     });
@@ -286,12 +325,33 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Lógica para enviar settings si soy Host
+    function updateTimeUI() {
+        if (settingDifficulty.value === 'facil') {
+            settingTimeEasy.style.display = 'inline-block';
+            settingTimeMode.style.display = 'none';
+            settingTimeCustom.style.display = 'none';
+        } else {
+            settingTimeEasy.style.display = 'none';
+            settingTimeMode.style.display = 'inline-block';
+            if (settingTimeMode.value === 'custom') {
+                settingTimeCustom.style.display = 'inline-block';
+            } else {
+                settingTimeCustom.style.display = 'none';
+            }
+        }
+    }
+
     function syncSettings() {
         if (network.isHost) {
+            let timeLimit = 0;
+            if (settingDifficulty.value === 'facil') {
+                timeLimit = parseInt(settingTimeEasy.value, 10) || 0;
+            } else {
+                timeLimit = settingTimeMode.value === 'custom' ? parseInt(settingTimeCustom.value, 10) || 0 : 0;
+            }
             network.actualizarAjustes({
-                totalRounds: parseInt(settingRounds.value),
-                timeLimit: parseInt(settingTime.value),
+                totalRounds: parseInt(settingRounds.value, 10) || 1,
+                timeLimit: timeLimit,
                 language: settingLanguage.value,
                 category: settingCategory.value,
                 difficulty: settingDifficulty.value,
@@ -300,21 +360,21 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
     settingRounds.addEventListener('change', syncSettings);
-    settingTime.addEventListener('change', syncSettings);
     settingLanguage.addEventListener('change', syncSettings);
     settingCategory.addEventListener('change', syncSettings);
     
+    settingTimeEasy.addEventListener('change', syncSettings);
+    settingTimeMode.addEventListener('change', () => {
+        if (network.isHost) {
+            updateTimeUI();
+            syncSettings();
+        }
+    });
+    settingTimeCustom.addEventListener('change', syncSettings);
+    
     settingDifficulty.addEventListener('change', () => {
         if (network.isHost) {
-            if (settingDifficulty.value === 'normal' || settingDifficulty.value === 'dificil') {
-                settingTime.value = '0';
-                settingTime.disabled = true;
-            } else {
-                settingTime.disabled = false;
-                if (settingTime.value === '0') {
-                    settingTime.value = '30';
-                }
-            }
+            updateTimeUI();
             syncSettings();
         }
     });
@@ -322,7 +382,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let usedTextsHistory = [];
     function getUniqueRandomText(language, category, difficulty) {
-        const db = window.textDatabase || {};
+        const db = textDatabase || {};
         const langObj = db[language] || db.es || {};
         const categoryObj = langObj[category] || langObj.quotes || {};
         const pool = categoryObj[difficulty] || categoryObj.normal || ["Texto de prueba."];
@@ -347,7 +407,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const randomText = getUniqueRandomText(language, category, difficulty);
             const currentSettings = {
                 totalRounds: parseInt(settingRounds.value) || 1,
-                timeLimit: parseInt(settingTime.value) || 0,
+                timeLimit: network.gameSettings ? network.gameSettings.timeLimit : 0,
                 language: language,
                 category: category,
                 mode: settingMode.value
@@ -383,6 +443,15 @@ document.addEventListener('DOMContentLoaded', () => {
     function cambiarPantalla(pantallaMostrar) {
         document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
         pantallaMostrar.classList.add('active');
+        
+        if (AudioEngine) {
+            AudioEngine.stopMusic();
+            if (pantallaMostrar === screenLobby || pantallaMostrar === screenHome) {
+                AudioEngine.playLobbyMusic();
+            } else if (pantallaMostrar === screenResults) {
+                AudioEngine.playResultsMusic();
+            }
+        }
     }
 
     function actualizarListaJugadores(players) {
@@ -590,18 +659,24 @@ document.addEventListener('DOMContentLoaded', () => {
         
         let count = 3;
         countdownContainer.textContent = count;
+        if (AudioEngine) {
+            AudioEngine.stopMusic();
+            AudioEngine.playCountdownTick();
+        }
         
         const interval = setInterval(() => {
             count--;
             if (count > 0) {
                 countdownContainer.textContent = count;
+                if (AudioEngine) AudioEngine.playCountdownTick();
             } else if (count === 0) {
                 countdownContainer.textContent = '¡YA!';
+                if (AudioEngine) AudioEngine.playCountdownGo();
             } else {
                 clearInterval(interval);
                 countdownContainer.style.display = 'none';
                 game.textDisplay.style.opacity = '1';
-                if (window.AudioEngine) {
+                if (AudioEngine) {
                     AudioEngine.playGo();
                     AudioEngine.playMusic();
                 }
@@ -645,8 +720,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (p.disqualified) {
                     if (!horse.hasAttribute('data-dead')) {
                         horse.setAttribute('data-dead', 'true');
-                        if (window.AudioEngine && window.AudioEngine.playGunshot) {
-                            window.AudioEngine.playGunshot();
+                        if (AudioEngine && AudioEngine.playGunshot) {
+                            AudioEngine.playGunshot();
                         }
                     }
                     horse.textContent = '💥';
@@ -683,7 +758,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function mostrarResultados(players, hasNextRound, currentRound, totalRounds) {
-        if (window.AudioEngine) AudioEngine.stopMusic();
+        if (AudioEngine) AudioEngine.stopMusic();
+        if (game) game.stopTimer();
         
         cambiarPantalla(screenResults);
         resultsBody.innerHTML = '';

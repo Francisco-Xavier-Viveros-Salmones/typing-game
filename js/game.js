@@ -1,19 +1,17 @@
-// game.js
-// Maneja la lógica local de mecanografía, validación y cálculos.
+import AudioEngine from './audio.js';
 
 class TypingGame {
     constructor(uiCallbacks) {
-        this.text = "";
+        this.text = '';
         this.currentIndex = 0;
         this.startTime = null;
         this.endTime = null;
         this.isFinished = false;
         
-        // Elementos UI
         this.textDisplay = document.getElementById('text-display');
         this.hiddenInput = document.getElementById('hidden-input');
         
-        this.ui = uiCallbacks; // { onProgress, onFinish, onStateChange }
+        this.ui = uiCallbacks; 
         
         this.handleKeyDown = this.handleKeyDown.bind(this);
         this.handleInputClick = this.handleInputClick.bind(this);
@@ -32,24 +30,26 @@ class TypingGame {
         this.totalErrors = 0;
         this.mistakeInCurrentWord = false;
         this.isTripped = false;
-        this.state = 'normal'; // 'normal', 'nitro', 'tripped'
+        this.state = 'normal'; 
         this.textDisplay.classList.remove('tripped-shake');
         
         this.timerElement = document.getElementById('game-timer');
-        if (this.timerInterval) clearInterval(this.timerInterval);
+        this.stopTimer();
         
         if (this.timeLimit > 0) {
             this.timerElement.style.display = 'inline';
             this.updateTimerDisplay(this.timeLimit);
             
             this.timerInterval = setInterval(() => {
-                if (this.isFinished) return;
                 const elapsed = (Date.now() - this.startTime) / 1000;
                 const remaining = Math.max(0, this.timeLimit - elapsed);
                 this.updateTimerDisplay(remaining);
                 
                 if (remaining === 0) {
-                    this.finish(true);
+                    this.stopTimer();
+                    if (!this.isFinished) {
+                        this.finish(true);
+                    }
                 }
             }, 100);
         } else {
@@ -58,17 +58,13 @@ class TypingGame {
         
         this.renderText();
         
-        // Listeners para móviles/foco
-        // Listeners
         this.textDisplay.addEventListener('click', this.handleInputClick);
         this.hiddenInput.addEventListener('input', this.handleInput.bind(this));
         this.hiddenInput.addEventListener('blur', () => this.textDisplay.classList.remove('focused'));
         this.hiddenInput.addEventListener('focus', () => this.textDisplay.classList.add('focused'));
         
-        // Listener global de teclado (principalmente para PC para Backspace)
         document.addEventListener('keydown', this.handleKeyDown);
         
-        // Foco inicial
         this.handleInputClick();
     }
 
@@ -84,24 +80,19 @@ class TypingGame {
     }
 
     handleInput(e) {
-        // En PC y móviles, el input hidden recibe el texto.
-        // Tomamos todos los caracteres insertados.
         const val = this.hiddenInput.value;
         if (val.length > 0 && !this.isFinished) {
             for (let i = 0; i < val.length; i++) {
                 if (this.isFinished) break;
                 this.processChar(val[i]);
             }
-            this.hiddenInput.value = ''; // limpiar
+            this.hiddenInput.value = ''; 
         }
     }
 
     handleKeyDown(e) {
         if (this.isFinished || this.isTripped) return;
-        
-        // Enfocar automáticamente el input oculto
         this.hiddenInput.focus();
-
         if (e.key === 'Backspace') {
             e.preventDefault();
             return;
@@ -110,19 +101,17 @@ class TypingGame {
 
     processChar(char) {
         const expectedChar = this.text[this.currentIndex];
-        
         const charElements = this.textDisplay.querySelectorAll('.char');
         const currentSpan = charElements[this.currentIndex];
 
         if (char === expectedChar) {
-            // Correcto
             if (expectedChar === ' ' || this.currentIndex === this.text.length - 1) {
                 this.errorsOnWord = 0;
                 if (!this.mistakeInCurrentWord) {
                     this.streak++;
                     if (this.streak >= 3 && this.state !== 'nitro') {
                         this.setState('nitro');
-                        if (window.AudioEngine) AudioEngine.playPowerUp();
+                        if (AudioEngine) AudioEngine.playPowerUp();
                     }
                 }
                 this.mistakeInCurrentWord = false;
@@ -130,29 +119,26 @@ class TypingGame {
 
             currentSpan.classList.remove('current', 'incorrect');
             currentSpan.classList.add('correct');
+            if (AudioEngine) AudioEngine.playTypeSound();
             
             this.currentIndex++;
             
-            // Siguiente caracter
             if (this.currentIndex < this.text.length) {
                 charElements[this.currentIndex].classList.add('current');
             }
 
-            // Reportar progreso
             const progressPercent = (this.currentIndex / this.text.length) * 100;
             if (this.ui.onProgress) {
                 this.ui.onProgress(progressPercent, this.state, this.streak);
             }
 
-            // Comprobar fin
             if (this.currentIndex === this.text.length) {
                 this.finish();
             }
         } else {
-            // Incorrecto
             if (this.mode === 'sudden_death') {
-                if (window.AudioEngine) AudioEngine.playError();
-                this.finish(true); // DNF instantáneo
+                if (AudioEngine) AudioEngine.playError();
+                this.finish(true);
                 return;
             }
             if (this.mode === 'vidas') {
@@ -169,7 +155,7 @@ class TypingGame {
             }
             
             currentSpan.classList.add('incorrect');
-            if (window.AudioEngine) AudioEngine.playError();
+            if (AudioEngine) AudioEngine.playError();
             
             if (this.mode !== 'vidas' && this.errorsOnWord >= 3 && !this.isTripped) {
                 this.triggerTrip();
@@ -187,7 +173,7 @@ class TypingGame {
     triggerTrip() {
         this.isTripped = true;
         this.setState('tripped');
-        if (window.AudioEngine) AudioEngine.playTrip();
+        if (AudioEngine) AudioEngine.playTrip();
         
         if (this.ui.onProgress) this.ui.onProgress((this.currentIndex / this.text.length) * 100, this.state, this.streak);
         
@@ -222,10 +208,12 @@ class TypingGame {
     }
 
     finish(disqualified = false) {
+        if (this.isFinished) return;
         this.isFinished = true;
         this.endTime = Date.now();
         this.stop();
-        if (this.timerInterval) clearInterval(this.timerInterval);
+        if (AudioEngine && !disqualified) AudioEngine.playFinishSound();
+        
         if (this.tripTimeout) clearTimeout(this.tripTimeout);
         this.textDisplay.classList.remove('tripped-shake');
         this.isTripped = false;
@@ -246,4 +234,13 @@ class TypingGame {
             this.ui.onFinish(wpm, timeInSeconds, disqualified, this.totalErrors);
         }
     }
+
+    stopTimer() {
+        if (this.timerInterval) {
+            clearInterval(this.timerInterval);
+            this.timerInterval = null;
+        }
+    }
 }
+
+export default TypingGame;
